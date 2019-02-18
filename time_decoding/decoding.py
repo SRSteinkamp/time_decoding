@@ -1,5 +1,5 @@
 from sklearn.feature_selection import SelectKBest, f_classif
-from nistats.design_matrix import make_design_matrix
+from nistats.design_matrix import make_first_level_design_matrix
 from nilearn.input_data import NiftiMasker
 from sklearn import linear_model, metrics
 from nilearn.datasets import fetch_haxby
@@ -168,7 +168,7 @@ def design_matrix(n_scans, tr, onsets, conditions, durations=None,
         paradigm['duration'] = durations
     paradigm = pd.DataFrame(paradigm)
 
-    design = make_design_matrix(frame_times, paradigm, hrf_model=hrf_model,
+    design = make_first_level_design_matrix(frame_times, paradigm, hrf_model=hrf_model,
                                 drift_model=drift_model)
 
     return design
@@ -280,11 +280,11 @@ def logistic_deconvolution(estimation_train, estimation_test, stimuli_train,
     # Create train and test time windows
     time_windows_train = [
         estimation_train[scan: scan + logistic_window].ravel()
-        for scan in xrange(len(estimation_train) - logistic_window + 1)
+        for scan in range(len(estimation_train) - logistic_window + 1)
         if train_mask[scan]]
     time_windows_test = [
         estimation_test[scan: scan + logistic_window].ravel()
-        for scan in xrange(len(estimation_test) - logistic_window + 1)
+        for scan in range(len(estimation_test) - logistic_window + 1)
         if test_mask[scan]]
 
     # Create train and test stimuli labels
