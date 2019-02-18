@@ -259,7 +259,7 @@ def logistic_deconvolution(estimation_train, estimation_test, stimuli_train,
     -------
 
     score: numpy array of size [n_categories]
-        prediction r2 score for each category
+        prediction accuracy score for each category
     """
 
     log = linear_model.LogisticRegressionCV()
@@ -296,3 +296,74 @@ def logistic_deconvolution(estimation_train, estimation_test, stimuli_train,
     accuracy = log.score(time_windows_test, stimuli_test)
 
     return accuracy
+
+
+def regression_deconvolution(estimation_train, estimation_test, stimuli_train,
+                           stimuli_test, logistic_window, delay=0, n_alpha=5):
+    """
+    Learn a deconvolution filter for regression given a time window
+    using logistic regression.
+
+    Parameters
+    ----------
+
+    estimation_train: numpy array of shape [n_scans_train, n_categories]
+        estimation of the categories time series for the train data
+
+    estimation_test: numpy array of shape [n_scans_test, n_categories]
+        estimation of the categories time series for the test data
+
+    stimuli_train: numpy array of shape [n_scans_train, n_categories]
+        time series of the train stimuli with one-hot encoding
+
+    stimuli_test: numpy array of shape [n_scans_test, n_categories]
+        time series of the test stimuli with one-hot encoding
+
+    logistic_window: int
+        size of the time window to be used for creating train and test data
+
+    delay: int, optional
+        delay between time series and stimuli to be applied to the data.
+        Defaults to 0.
+
+    Returns
+    -------
+
+    score: numpy array of size [n_categories]
+        prediction r2 score for each category
+    """
+    alphas = np.logspace(- n_alpha / 2, n_alpha - (n_alpha / 2), num=n_alpha)
+    reg = linear_model.RidgeCV(alphas=alphas)
+
+    # Add a delay between time series and stimuli if needed
+    if delay != 0:
+        estimation_train, estimation_test = (
+            estimation_train[delay:], estimation_test[delay:])
+        stimuli_train, stimuli_test = (
+            stimuli_train[:-delay], stimuli_test[:-delay])
+
+    # Create train and test masks for the stimuli (i.e. no 'rest' category)
+    train_mask = np.sum(
+        stimuli_train[:, 1:], axis=1).astype(bool)
+    test_mask = np.sum(
+        stimuli_test[:, 1:], axis=1).astype(bool)
+
+    # Create train and test time windows
+    time_windows_train = [
+        estimation_train[scan: scan + logistic_window].ravel()
+        for scan in range(len(estimation_train) - logistic_window + 1)
+        if train_mask[scan]]
+    time_windows_test = [
+        estimation_test[scan: scan + logistic_window].ravel()
+        for scan in range(len(estimation_test) - logistic_window + 1)
+        if test_mask[scan]]
+
+    # Create train and test stimuli labels
+    stimuli_train = np.argmax(stimuli_train[train_mask], axis=1)
+    stimuli_test = np.argmax(stimuli_test[test_mask], axis=1)
+
+    # Fit logistic regression
+    reg.fit(time_windows_train, stimuli_train)
+    r2_sc = reg.score(time_windows_test, stimuli_test)
+
+    return r2_sc
