@@ -1,4 +1,4 @@
-from sklearn.feature_selection import SelectKBest, f_classif
+from sklearn.feature_selection import SelectKBest, f_classif, f_regression
 from nistats.design_matrix import make_first_level_design_matrix
 from nilearn.input_data import NiftiMasker
 from sklearn import linear_model, metrics
@@ -80,10 +80,10 @@ def read_data_haxby(subject, tr=2.5):
     return fmri, stimuli, onsets, conditions
 
 
-def feature_selection(fmri_train, fmri_test, stimuli_train, k=10000):
+def feature_selection(fmri_train, fmri_test, stimuli_train, k=10000, decoding_type='classification'):
     """
-    Applies anova feature selection to fmri data using classification
-    accuracy on stimuli data as measure of performance
+    Applies anova feature selection to fmri data using classification or
+    regression accuracy on stimuli data as measure of performance.
 
     Parameters
     ----------
@@ -112,7 +112,14 @@ def feature_selection(fmri_train, fmri_test, stimuli_train, k=10000):
     """
 
     # Fit the anova feature selection
-    anova = SelectKBest(f_classif, k=k)
+    if decoding_type == 'classification':
+        anova = SelectKBest(f_classif, k=k)
+    elif decoding_type == 'regression':
+        anova = SelectKBest(f_regression, k=k)
+    else:
+        raise ValueError(f'decoding type is {decoding_type}, '
+            'but has to be "regression" or "classification"!')
+
     fmri_train = anova.fit_transform(fmri_train, stimuli_train)
 
     # Transform the given test set
