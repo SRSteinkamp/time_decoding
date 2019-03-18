@@ -59,8 +59,9 @@ def read_data_haxby(subject, tr=2.5):
         onsets.append([])
         conditions.append([])
         for scan in range(1, len(fmri[session])):
-            if (labels[session][scan - 1] == 'rest' and
-                labels[session][scan] != 'rest'):
+            if (labels[session][scan - 1] == 'rest'
+                and labels[session][scan] != 'rest'):
+
                 label = labels[session][scan]
                 stimuli[session, scan, np.where(classes == label)[0][0]] = 1
                 conditions[session].append(label)
@@ -80,7 +81,8 @@ def read_data_haxby(subject, tr=2.5):
     return fmri, stimuli, onsets, conditions
 
 
-def feature_selection(fmri_train, fmri_test, stimuli_train, k=10000, decoding_type='classification'):
+def feature_selection(fmri_train, fmri_test, stimuli_train, k=10000,
+                      decoding_type='classification'):
     """
     Applies anova feature selection to fmri data using classification or
     regression accuracy on stimuli data as measure of performance.
@@ -118,7 +120,7 @@ def feature_selection(fmri_train, fmri_test, stimuli_train, k=10000, decoding_ty
         anova = SelectKBest(f_regression, k=k)
     else:
         raise ValueError(f'decoding type is {decoding_type}, '
-            'but has to be "regression" or "classification"!')
+                         'but has to be "regression" or "classification"!')
 
     fmri_train = anova.fit_transform(fmri_train, stimuli_train)
 
@@ -175,8 +177,9 @@ def design_matrix(n_scans, tr, onsets, conditions, durations=None,
         paradigm['duration'] = durations
     paradigm = pd.DataFrame(paradigm)
 
-    design = make_first_level_design_matrix(frame_times, paradigm, hrf_model=hrf_model,
-                                drift_model=drift_model)
+    design = make_first_level_design_matrix(frame_times, paradigm,
+                                            hrf_model=hrf_model,
+                                            drift_model=drift_model)
 
     return design
 
@@ -306,7 +309,9 @@ def logistic_deconvolution(estimation_train, estimation_test, stimuli_train,
 
 
 def regression_deconvolution(estimation_train, estimation_test, stimuli_train,
-                           stimuli_test, logistic_window, delay=0, n_alpha=5):
+                             stimuli_test, logistic_window, delay=0,
+                             n_alpha=5):
+    from sklearn import linear_model
     """
     Learn a deconvolution filter for regression given a time window
     using logistic regression.
@@ -351,9 +356,9 @@ def regression_deconvolution(estimation_train, estimation_test, stimuli_train,
 
     # Create train and test masks for the stimuli (i.e. no 'rest' category)
     train_mask = np.sum(
-        stimuli_train[:, 1:], axis=1).astype(bool)
+        stimuli_train[:, :], axis=1).astype(bool)
     test_mask = np.sum(
-        stimuli_test[:, 1:], axis=1).astype(bool)
+        stimuli_test[:, :], axis=1).astype(bool)
 
     # Create train and test time windows
     time_windows_train = [
@@ -366,11 +371,12 @@ def regression_deconvolution(estimation_train, estimation_test, stimuli_train,
         if test_mask[scan]]
 
     # Create train and test stimuli labels
-    stimuli_train = np.argmax(stimuli_train[train_mask], axis=1)
-    stimuli_test = np.argmax(stimuli_test[test_mask], axis=1)
+    stimuli_train = stimuli_train[train_mask]
+    stimuli_test = stimuli_test[test_mask]
 
     # Fit logistic regression
     reg.fit(time_windows_train, stimuli_train)
     r2_sc = reg.score(time_windows_test, stimuli_test)
+    prediction = reg.predict(time_windows_test)
 
-    return r2_sc
+    return r2_sc, prediction
